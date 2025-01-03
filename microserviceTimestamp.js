@@ -25,32 +25,28 @@ app.get("/api/hello", function (req, res) {
 });
 
 app.get("/api/:dateInput?", function (req, res) {
-  console.log(req.params.dateInput);
-  if(req.params.dateInput == undefined){
-    let d = new Date();
-    res.json({unix : d.valueOf(), utc: d.toUTCString()});
-  } else {
-    if (/\d{5,}/.test(req.params.dateInput)) {
-
-      let times = parseInt(req.params.dateInput);
-      let dd = new Date(times);
-      if(dd.toString() == "Invalid Date"){
-        res.send({ error : "Invalid Date"});
-      } else {
-        res.json({unix: times, utc: dd.toUTCString()});
-      }
-    } else {
-      let dd = new Date(req.params.dateInput);
-      if(dd.toString() == "Invalid Date"){
-        res.send({ error : "Invalid Date"});
-      } else {
-        res.json({unix: dd.valueOf(), utc: dd.toUTCString()});
-      }
-      
+  const getDateResponse = (date) => {
+    if (isNaN(date)) {
+      return { error: "Invalid Date" };
     }
+    return { unix: date.getTime(), utc: date.toUTCString() };
+  };
+
+  let dateInput = req.params.dateInput;
+
+  if (!dateInput) {
+    const currentDate = new Date();
+    return res.json(getDateResponse(currentDate));
   }
-  
+  const isUnixTimestamp = /^\d{5,}$/.test(dateInput);
+
+  const date = isUnixTimestamp 
+    ? new Date(parseInt(dateInput)) 
+    : new Date(dateInput);
+
+  res.json(getDateResponse(date));
 });
+
 
 
 

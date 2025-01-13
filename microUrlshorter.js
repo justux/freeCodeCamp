@@ -5,18 +5,14 @@ const dns = require('dns');
 const urlparser = require('url');
 const { param } = require('express/lib/request');
 const app = express();
+const { MongoClient } = require('mongodb');
+
+const client = new MongoClient(process.env.MONGO_URI);
+const db = client.db("urlshoter");
+const urls = db.collection("urls");
 
 // Basic Configuration
 const port = process.env.PORT || 3000;
-
-let mongoose = require('mongoose');
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
-const urlsSchema = new mongoose.Schema({
-  original_url: String,
-  short_url: Number
-});
-let Urlsc = mongoose.model('Urlsc', urlsSchema);
-
 
 app.use(cors());
 app.use(express.json());
@@ -38,34 +34,26 @@ app.post('/api/shorturl', (req, res) => {
   const dnslookup = dns.lookup(urlparser.parse(url).hostname, async (err, address) => {
     if(!address){
       res.json({error : "Invalid URL"});
+
     } else {
-      let uu = new Urlsc({ original_url: req.body.url, short_url: 100});
-      uu.save().then((data)=>{
-          res.json(data);
-      }).catch((err)=>{
-          console.log(err);
-      })
+      const urlCount = await urls.countDocuments({});
+      const urlDoc ={
+        url,
+        short_url: urlCount
+      }
+      const result = await urls.insertOne(urlDoc);
+      console.log(result);
+      res.json({ original_url: url , short_url: urlCount});
     }
   })
 });
 
-app.get('/api/shorturl/:su', function(req, res) {
-  Urlsc.find({ short_url : req.params.su }).then((data)=>{
-      res.json(data);
-  }).catch((err)=>{
-      console.log(err);
-  })
+app.get('/api/shorturl/:su', async (req, res) => {
+  const shorturl = req.params.su
+  const urlDocs = await urls.findOne({ short_url: +shorturl})
+  res.redirect(urlDocs.url);
 });
 
-app.get("/articles", async (req, res) => {
-  try {
-    const articles = await Article.find({ });
-    res.send(articles);
-    console.log(articles);
-  } catch (err) {
-    console.log(err);
-  }
-});
 
 app.listen(port, function() {
   console.log(`Listening on port ${port}`);
